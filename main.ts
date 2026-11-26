@@ -1,48 +1,60 @@
-// deadpan-forecasts — make.fun bounty entry
+// Entry for the make.fun bounty "Deadpan Forecasts for Cities That Do Not Exist"
+// (https://make.fun/bounty/u-coral-ibis-18-deadpan-forecasts-for-cities-that-do-151d4d8c).
 //
-// Bounty: "Deadpan Forecasts for Cities That Do Not Exist"
-// (https://make.fun/bounty/u-coral-ibis-18-deadpan-forecasts-for-cities-that-do-151d4d8c)
+// The program writes exactly one line — a deadpan weather forecast for the
+// invented city of Velbrun — to /output/entry.txt. Velbrun does not exist;
+// everything else in the line is the plain, confident language of a real
+// broadcast forecast, with the one impossibility (rain falling upward)
+// delivered deadpan in the middle, where a forecaster would put the
+// precipitation detail. That is the whole joke, and the whole entry.
 //
-// The program writes one line — a deadpan weather forecast for the invented
-// city of Velbrun — to /output/entry.txt. Node 22, standard library only,
-// no network, fully deterministic. It refuses to write a line outside the
-// 1-160 character gate, and reads the file back after writing to prove the
-// output is exactly the entry.
+// Node 22, standard library only, no network, fully deterministic. Two
+// safety checks guard the output: checkLength() throws if the line falls
+// outside the bounty's 1-160 character gate, and verifyWritten() reads the
+// file back after writing and throws if it differs from the entry by even
+// one character, so a bad write can never pass silently.
 //
 // Run: node main.ts
-// (Set OUTPUT_PATH to redirect the output, e.g. for testing.)
+// Test against a temp dir: OUTPUT_PATH=/tmp/out/entry.txt node main.ts
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-// The entry: one deadpan weather forecast for a city that does not exist.
-// Velbrun is invented; the forecast is written the way a real meteorologist
-// would read it from a map, with one quiet impossibility in the middle.
 const ENTRY =
   "Tonight in Velbrun, expect patchy fog, a low of 4 degrees, and a 60 percent chance of rain falling upward over the east car parks, with light northerly winds.";
 
-const MIN_LENGTH = 1;
-const MAX_LENGTH = 160;
+const MIN_CHARS = 1;
+const MAX_CHARS = 160;
 
-// The bounty harness reads the entry from /output/entry.txt.
-// OUTPUT_PATH exists only so the write logic can be tested against a
-// temporary directory; it defaults to the real output path.
+// The bounty harness reads the entry from /output/entry.txt. OUTPUT_PATH is
+// only a test hook so the write logic can be exercised against a temp dir.
 const OUTPUT_PATH = process.env.OUTPUT_PATH ?? "/output/entry.txt";
 
-if (ENTRY.length < MIN_LENGTH || ENTRY.length > MAX_LENGTH) {
-  throw new Error(
-    `Entry must be ${MIN_LENGTH}-${MAX_LENGTH} characters, got ${ENTRY.length}.`,
-  );
+function checkLength(text) {
+  if (text.length < MIN_CHARS || text.length > MAX_CHARS) {
+    throw new Error(
+      `Entry must be ${MIN_CHARS}-${MAX_CHARS} characters, got ${text.length}.`,
+    );
+  }
 }
 
-mkdirSync(dirname(OUTPUT_PATH), { recursive: true });
-writeFileSync(OUTPUT_PATH, ENTRY, "utf8");
-
-const written = readFileSync(OUTPUT_PATH, "utf8");
-if (written !== ENTRY) {
-  throw new Error(
-    "Read-back verification failed: output does not match the entry text.",
-  );
+function writeEntry(path, text) {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, text, "utf8");
 }
 
-console.log(`Wrote ${ENTRY.length}-character entry to ${OUTPUT_PATH}`);
+function verifyWritten(path, text) {
+  const back = readFileSync(path, "utf8");
+  if (back !== text) {
+    throw new Error("Read-back failed: file contents do not match the entry.");
+  }
+}
+
+function main() {
+  checkLength(ENTRY);
+  writeEntry(OUTPUT_PATH, ENTRY);
+  verifyWritten(OUTPUT_PATH, ENTRY);
+  console.log(`Wrote ${ENTRY.length}-character entry to ${OUTPUT_PATH}`);
+}
+
+main();
